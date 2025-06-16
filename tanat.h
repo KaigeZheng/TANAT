@@ -9,9 +9,9 @@
 #ifndef TANAT_H
 #define TANAT_H
 
-#define MAX_WORD 256
+#define MAX_WORD 65536
 #define TOP_N 10
-#define WORD_TABLE_SIZE 1000
+#define WORD_TABLE_SIZE 2048
 
 void analyze_file(const char *filepath, int show_report, const char *report_path);
 void replace_in_file(const char *filepath, const char *old, const char *newstr);
