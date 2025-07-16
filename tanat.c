@@ -446,15 +446,15 @@ void output_global_report(const struct GlobalStat *stat, int show_report, const 
         FILE *out = fopen(report_path, "w");
         if (out) {
             fprintf(out, "==============================\n");
-            fprintf(out, "  Text Analysis Summary Report\n");
+            fprintf(out, "  全局文本分析报告\n");
             fprintf(out, "==============================\n");
-            fprintf(out, "Total characters : %d\n", stat->chars);
-            fprintf(out, "Total words      : %d\n", stat->words);
-            fprintf(out, "Total lines      : %d\n", stat->lines);
+            fprintf(out, "字符总数 : %d\n", stat->chars);
+            fprintf(out, "单词总数 : %d\n", stat->words);
+            fprintf(out, "行    数 : %d\n", stat->lines);
             fprintf(out, "------------------------------\n");
-            fprintf(out, "Top %d frequent words:\n", TOP_N);
+            fprintf(out, "前 %d 高频词：\n", TOP_N);
             fprintf(out, "+----------------------+--------+\n");
-            fprintf(out, "| Word                | Count  |\n");
+            fprintf(out, "| 词语                 | 频率   |\n");
             fprintf(out, "+----------------------+--------+\n");
             for (int i = 0; i < TOP_N && i < stat->word_table_size; ++i) {
                 fprintf(out, "| %-20s | %-6d |\n", sorted[i].word, sorted[i].count);
@@ -466,15 +466,15 @@ void output_global_report(const struct GlobalStat *stat, int show_report, const 
     }
     // 始终高亮打印到终端
     printf("==============================\n");
-    printf("  Text Analysis Summary Report\n");
+    printf("  全局文本分析报告\n");
     printf("==============================\n");
-    printf("Total characters : %d\n", stat->chars);
-    printf("Total words      : %d\n", stat->words);
-    printf("Total lines      : %d\n", stat->lines);
+    printf("字符总数 : %d\n", stat->chars);
+    printf("单词总数 : %d\n", stat->words);
+    printf("行    数 : %d\n", stat->lines);
     printf("------------------------------\n");
-    printf("Top %d frequent words:\n", TOP_N);
+    printf("前 %d 高频词：\n", TOP_N);
     printf("+----------------------+--------+\n");
-    printf("| Word                | Count  |\n");
+    printf("| 词语                 | 频率   |\n");
     printf("+----------------------+--------+\n");
     for (int i = 0; i < TOP_N && i < stat->word_table_size; ++i) {
         printf("| ");
