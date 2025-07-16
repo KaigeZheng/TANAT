@@ -12,6 +12,9 @@
 #define MAX_WORD 65536
 #define TOP_N 10
 #define WORD_TABLE_SIZE 1024
+// #define WORD_MAX_LEN 64
+// #define HASH_TABLE_SIZE 1024
+// #define HASH_BASE 131
 
 void analyze_file(const char *filepath, int show_report, const char *report_path, const char *color);
 void replace_in_file(const char *filepath, const char *old, const char *newstr);

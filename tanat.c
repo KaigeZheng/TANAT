@@ -47,18 +47,54 @@ struct GlobalStat {
  * 输入：table - 词频表数组，size - 当前表大小指针，word - 单词字符串
  */
 void add_word(struct WordFreq *table, int *size, const char *word) {
+    // 顺序查找
     for (int i = 0; i < *size; ++i) {
         if (strcmp(table[i].word, word) == 0) {
             table[i].count++;
             return;
         }
     }
+    // 插入词表
     if (*size < WORD_TABLE_SIZE) {
         strcpy(table[*size].word, word);
         table[*size].count = 1;
         (*size)++;
     }
 }
+
+// 哈希实现方法: 将复杂度从O(n)优化到O(1)
+/* 
+unsigned int hash(const char *str) {
+    unsigned long long h = 0;
+    while (*str) {
+        h = h * HASH_BASE + (unsigned char)(*str++);
+    }
+    return (unsigned int)(h % HASH_TABLE_SIZE);
+}
+
+void add_word_hash(struct WordFreq *table, const char *word) {
+    unsigned int index = hash(word);
+
+    // 开放地址法：线性探测解决冲突
+    for (int i = 0; i < HASH_TABLE_SIZE; ++i) {
+        unsigned int probe = (index + i) % HASH_TABLE_SIZE;
+
+        if (table[probe].count == 0) {
+            // 空槽，插入新词
+            strncpy(table[probe].word, word, WORD_MAX_LEN - 1);
+            table[probe].word[WORD_MAX_LEN - 1] = '\0';
+            table[probe].count = 1;
+            return;
+        } else if (strcmp(table[probe].word, word) == 0) {
+            // 找到已有词，计数+1
+            table[probe].count++;
+            return;
+        }
+    }
+
+    fprintf(stderr, "Error: hash table is full!\n");
+}
+*/
 
 /*
  * cmp_word
@@ -75,12 +111,14 @@ int cmp_word(const void *a, const void *b) {
  * 输入：stat - 全局统计结构体指针，word - 单词字符串
  */
 void add_word_global(struct GlobalStat *stat, const char *word) {
+    // 顺序查找
     for (int i = 0; i < stat->word_table_size; ++i) {
         if (strcmp(stat->word_table[i].word, word) == 0) {
             stat->word_table[i].count++;
             return;
         }
     }
+    // 插入词表
     if (stat->word_table_size < WORD_TABLE_SIZE) {
         strcpy(stat->word_table[stat->word_table_size].word, word);
         stat->word_table[stat->word_table_size].count = 1;
@@ -88,7 +126,11 @@ void add_word_global(struct GlobalStat *stat, const char *word) {
     }
 }
 
-// 高亮颜色代码
+/*
+ * get_color_code
+ * 功能：获取颜色ANSI转义码。
+ * 输入：color - 颜色字符串
+ */
 const char *get_color_code(const char *color) {
     // 支持的颜色：yellow, red, green, blue, magenta, cyan, white, black, gray, pink, orange, brown, purple, brightred, brightgreen, brightblue, brightmagenta, brightcyan, brightwhite, lightgray, darkgray
     if (strcmp(color, "yellow") == 0) return "\033[1;33m";
@@ -132,6 +174,8 @@ void print_highlighted_word(const char *word, const char *color) {
  * 返回：1为单词边界，0为非单词边界
  */
 int is_word_boundary(char c) {
+    // 如果字符串至少包含一个字符，并且所有字符都是字母或数字，则返回False
+    // 否则，返回True
     return !isalnum((unsigned char)c);
 }
 
@@ -176,7 +220,9 @@ void analyze_file(const char *filepath, int show_report, const char *report_path
     FILE *fp = fopen(filepath, "r");
     if (!fp) { printf("无法打开文件: %s\n", filepath); return; }
     int chars = 0, words = 0, lines = 0;
+    // 4096 Bytes == 4 KB 缓冲区
     char buf[4096];
+    // struct WordFreq word_table[WORD_TABLE_SIZE]; ! 当WORD_TABLE_SIZE过大时会Segmentation fault (core dumped)
     struct WordFreq *word_table = malloc(sizeof(struct WordFreq) * WORD_TABLE_SIZE);
     if (!word_table) {
         printf("内存分配失败\n");
@@ -184,6 +230,7 @@ void analyze_file(const char *filepath, int show_report, const char *report_path
         return;
     }
     int word_table_size = 0;
+    // 不断读入缓冲区
     while (fgets(buf, sizeof(buf), fp)) {
         lines++;
         chars += strlen(buf);
@@ -203,15 +250,16 @@ void analyze_file(const char *filepath, int show_report, const char *report_path
         }
     }
     fclose(fp);
+    // 排序词频
     qsort(word_table, word_table_size, sizeof(struct WordFreq), cmp_word);
-    // 保存高频词
+    // 记录高频词
     char top_words[TOP_N][MAX_WORD] = {0};
     int real_top = (word_table_size < TOP_N) ? word_table_size : TOP_N;
     for (int i = 0; i < real_top; ++i) {
         memcpy(top_words[i], word_table[i].word, MAX_WORD - 1);
         top_words[i][MAX_WORD - 1] = '\0';
     }
-    // 始终输出到文件（如有）
+    // 输出到文件（如有）
     if (show_report && report_path) {
         FILE *out = fopen(report_path, "w");
         if (out) {
@@ -279,19 +327,24 @@ void analyze_file(const char *filepath, int show_report, const char *report_path
 void replace_in_file(const char *filepath, const char *old, const char *newstr) {
     FILE *fp = fopen(filepath, "r");
     if (!fp) { printf("无法打开文件: %s\n", filepath); return; }
+    // 先将修改后文本写入暂时文件
     FILE *tmp = fopen(".tmp_tanat", "w");
     char buf[4096];
     int replaced = 0;
     while (fgets(buf, sizeof(buf), fp)) {
         char *pos = buf;
         while ((pos = strstr(pos, old))) {
+            // 将匹配字符串前的内容写到临时文件
             fwrite(buf, 1, pos - buf, tmp);
+            // 写入替换字符串
             fwrite(newstr, 1, strlen(newstr), tmp);
             pos += strlen(old);
+            // 将剩余部分移到缓冲区开头
             memmove(buf, pos, strlen(pos) + 1);
             pos = buf;
             replaced = 1;
         }
+        // 剩下部分写入临时文件
         fputs(buf, tmp);
     }
     fclose(fp); fclose(tmp);
@@ -311,13 +364,16 @@ void diff_files(const char *file1, const char *file2) {
     FILE *fp2 = fopen(file2, "r");
     if (!fp1 || !fp2) { printf("无法打开文件\n"); return; }
     char buf1[4096], buf2[4096];
+    // 行号计数器
     int line = 1;
+    // 逐行比较 (参考diff)
     while (fgets(buf1, sizeof(buf1), fp1) && fgets(buf2, sizeof(buf2), fp2)) {
         if (strcmp(buf1, buf2) != 0) {
             printf("第%d行不同:\n< %s> %s\n", line, buf1, buf2);
         }
         line++;
     }
+    // 文本超出部分比较
     while (fgets(buf1, sizeof(buf1), fp1)) {
         printf("第%d行文件1多余: %s", line++, buf1);
     }
@@ -333,6 +389,7 @@ void diff_files(const char *file1, const char *file2) {
  * 输入：filepath - 文件路径，stat - 全局统计结构体指针
  */
 void analyze_file_sum(const char *filepath, struct GlobalStat *stat) {
+    // 在递归场景下使用
     FILE *fp = fopen(filepath, "r");
     if (!fp) return;
     char buf[4096];
@@ -364,6 +421,7 @@ void analyze_file_sum(const char *filepath, struct GlobalStat *stat) {
  * 返回：1为文本文件，0为非文本文件
  */
 int is_text_file(const char *filename) {
+    // 主要用于递归目录时判断文件合法性
     const char *ext = strrchr(filename, '.');
     if (!ext) return 0;
     return strcmp(ext, ".txt") == 0 || strcmp(ext, ".md") == 0 || strcmp(ext, ".log") == 0;
@@ -441,12 +499,13 @@ void analyze_dir(const char *dirpath, int show_report, const char *report_path) 
     if (!dir) { printf("无法打开目录: %s\n", dirpath); return; }
     struct dirent *entry;
     char path[1024];
+    // 遍历目录项
     while ((entry = readdir(dir))) {
-        if (entry->d_type == DT_DIR) {
+        if (entry->d_type == DT_DIR) {              // 如果是目录
             if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
             snprintf(path, sizeof(path), "%s/%s", dirpath, entry->d_name);
-            analyze_dir(path, 0, NULL); // 递归子目录，统计在全局stat中
-        } else if (is_text_file(entry->d_name)) {
+            analyze_dir(path, 0, NULL); // 递归子目录，统计在全局stat中 （show_report == 0）
+        } else if (is_text_file(entry->d_name)) {   // 如果是文本文件
             snprintf(path, sizeof(path), "%s/%s", dirpath, entry->d_name);
             analyze_file_sum(path, &stat);
         }
@@ -511,12 +570,11 @@ int main(int argc, char *argv[]) {
             report_path = argv[++i];
             show_report = 1;
         } else if (strcmp(argv[i], "-c") == 0 && i + 2 < argc && argv[i+1][0] != '-') {
-            // 仅用于替换 old new
             replace_old = argv[++i];
             replace_new = argv[++i];
             do_replace = 1;
         } else if (strcmp(argv[i], "-h") == 0 && i + 1 < argc) {
-            strncpy(color, argv[++i], sizeof(color)-1);
+            strncpy(color, argv[++i], sizeof(color)-1); // 避免输入字符过长
             color[sizeof(color)-1] = '\0';
         } else if (strcmp(argv[i], "-d") == 0 && i + 2 < argc) {
             diff_files(argv[i+1], argv[i+2]);
@@ -527,22 +585,31 @@ int main(int argc, char *argv[]) {
         i++;
     }
 
+    // 递归替换字符串
     if (dirpath && do_replace) {
         replace_in_dir(dirpath, replace_old, replace_new);
         return 0;
     }
+
+    // 递归分析统计
     if (dirpath) {
         analyze_dir(dirpath, show_report, report_path);
         return 0;
     }
+
+    // 替换字符串
     if (filepath && do_replace) {
         replace_in_file(filepath, replace_old, replace_new);
         return 0;
     }
+
+    // 分析统计
     if (filepath) {
         analyze_file(filepath, show_report, report_path, color);
         return 0;
     }
+
+    // 提示使用方法
     print_usage();
     return 0;
 }
