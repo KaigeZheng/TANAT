@@ -1,0 +1,20 @@
+TANAT
+TANAT (Text ANAlyze Toolkit) is a lightweight command-line utility for analyzing and processing text files. It offers a variety of features for statistics, word frequency analysis, content replacement, and more:
+
+Usage
+tanat [-p <file path>] [-o <output report path>] [-c <old> <new>] [-d <file1> <file2>] [-r <directory path>]
+Function
+Default Mode By default, TANAT analyzes The text content of The current directory, reporting The number of characters, words, lines, and The top 10 most frequent words, which are highlighted directly in The terminal output.
+
+-p Argument: Specify File Path Allows you to provide a specific file path with -p for targeted analysis.
+
+-o Argument: Output Report to File Use -o <output_path> to save The analysis report to a specified file instead of (or in addition to) printing to The terminal.
+
+-c Argument: Simple Text Replacement Enables find-and-replace functionality via -c <old_string> <new_string>, modifying occurrences of a string in The file.
+
+-d Argument: File Difference Comparison Compares two files using -d , similar to tools like diff or vimdiff, and shows content differences line by line.
+
+-r Argument: Recursive Directory Processing With -r , TANAT will recursively analyze all text files in The specified directory and generate a cumulative report.
+
+How to build
+make

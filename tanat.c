@@ -88,13 +88,41 @@ void add_word_global(struct GlobalStat *stat, const char *word) {
     }
 }
 
+// 高亮颜色代码
+const char *get_color_code(const char *color) {
+    // 支持的颜色：yellow, red, green, blue, magenta, cyan, white, black, gray, pink, orange, brown, purple, brightred, brightgreen, brightblue, brightmagenta, brightcyan, brightwhite, lightgray, darkgray
+    if (strcmp(color, "yellow") == 0) return "\033[1;33m";
+    if (strcmp(color, "red") == 0) return "\033[1;31m";
+    if (strcmp(color, "green") == 0) return "\033[1;32m";
+    if (strcmp(color, "blue") == 0) return "\033[1;34m";
+    if (strcmp(color, "magenta") == 0) return "\033[1;35m";
+    if (strcmp(color, "cyan") == 0) return "\033[1;36m";
+    if (strcmp(color, "white") == 0) return "\033[1;37m";
+    if (strcmp(color, "black") == 0) return "\033[1;30m";
+    if (strcmp(color, "gray") == 0) return "\033[1;38m";
+    if (strcmp(color, "pink") == 0) return "\033[1;95m";
+    if (strcmp(color, "orange") == 0) return "\033[38;5;208m";
+    if (strcmp(color, "brown") == 0) return "\033[38;5;94m";
+    if (strcmp(color, "purple") == 0) return "\033[38;5;93m";
+    if (strcmp(color, "brightred") == 0) return "\033[1;91m";
+    if (strcmp(color, "brightgreen") == 0) return "\033[1;92m";
+    if (strcmp(color, "brightblue") == 0) return "\033[1;94m";
+    if (strcmp(color, "brightmagenta") == 0) return "\033[1;95m";
+    if (strcmp(color, "brightcyan") == 0) return "\033[1;96m";
+    if (strcmp(color, "brightwhite") == 0) return "\033[1;97m";
+    if (strcmp(color, "lightgray") == 0) return "\033[0;37m";
+    if (strcmp(color, "darkgray") == 0) return "\033[1;90m";
+    return "\033[1;33m"; // 默认黄色
+}
+
 /*
  * print_highlighted_word
- * 功能：在终端高亮显示关键词（黄色）。
+ * 功能：在终端高亮显示关键词。
  * 输入：word - 关键词字符串
+ * color - 颜色字符串
  */
-void print_highlighted_word(const char *word) {
-    printf("\033[1;33m%s\033[0m", word); // 黄色高亮
+void print_highlighted_word(const char *word, const char *color) {
+    printf("%s%s\033[0m", get_color_code(color), word);
 }
 
 /*
@@ -111,8 +139,9 @@ int is_word_boundary(char c) {
  * print_line_with_highlight
  * 功能：在一行中高亮所有高频词。
  * 输入：line - 文本行，top_words - 高频词数组，top_n - 高频词数量
+ * color - 高亮颜色
  */
-void print_line_with_highlight(const char *line, char top_words[TOP_N][MAX_WORD], int top_n) {
+void print_line_with_highlight(const char *line, char top_words[TOP_N][MAX_WORD], int top_n, const char *color) {
     int len = strlen(line);
     int i = 0;
     while (i < len) {
@@ -124,7 +153,7 @@ void print_line_with_highlight(const char *line, char top_words[TOP_N][MAX_WORD]
                 char before = (i == 0) ? ' ' : line[i-1];
                 char after = line[i+wlen];
                 if (is_word_boundary(before) && is_word_boundary(after)) {
-                    print_highlighted_word(top_words[k]);
+                    print_highlighted_word(top_words[k], color);
                     i += wlen;
                     matched = 1;
                     break;
@@ -143,12 +172,17 @@ void print_line_with_highlight(const char *line, char top_words[TOP_N][MAX_WORD]
  * 功能：统计单个文件的字符数、单词数、行数和高频词，并输出报告。
  * 输入：filepath - 文件路径，show_report - 是否输出到文件，report_path - 报告文件路径
  */
-void analyze_file(const char *filepath, int show_report, const char *report_path) {
+void analyze_file(const char *filepath, int show_report, const char *report_path, const char *color) {
     FILE *fp = fopen(filepath, "r");
     if (!fp) { printf("无法打开文件: %s\n", filepath); return; }
     int chars = 0, words = 0, lines = 0;
     char buf[4096];
-    struct WordFreq word_table[WORD_TABLE_SIZE];
+    struct WordFreq *word_table = malloc(sizeof(struct WordFreq) * WORD_TABLE_SIZE);
+    if (!word_table) {
+        printf("内存分配失败\n");
+        fclose(fp);
+        return;
+    }
     int word_table_size = 0;
     while (fgets(buf, sizeof(buf), fp)) {
         lines++;
@@ -218,7 +252,7 @@ void analyze_file(const char *filepath, int show_report, const char *report_path
     printf("+----------------------+--------+\n");
     for (int i = 0; i < TOP_N && i < word_table_size; ++i) {
         printf("| ");
-        print_highlighted_word(word_table[i].word);
+        print_highlighted_word(word_table[i].word, color);
         int len = strlen(word_table[i].word);
         for (int j = len; j < 20; ++j) printf(" ");
         printf(" | %-6d |\n", word_table[i].count);
@@ -230,10 +264,11 @@ void analyze_file(const char *filepath, int show_report, const char *report_path
     fp = fopen(filepath, "r");
     if (fp) {
         while (fgets(buf, sizeof(buf), fp)) {
-            print_line_with_highlight(buf, top_words, real_top);
+            print_line_with_highlight(buf, top_words, real_top, color);
         }
         fclose(fp);
     }
+    free(word_table);
 }
 
 /*
@@ -340,7 +375,12 @@ int is_text_file(const char *filename) {
  * 输入：stat - 全局统计结构体指针，show_report - 是否输出到文件，report_path - 报告文件路径
  */
 void output_global_report(const struct GlobalStat *stat, int show_report, const char *report_path) {
-    struct WordFreq sorted[WORD_TABLE_SIZE];
+    // struct WordFreq sorted[WORD_TABLE_SIZE]; ! 当WORD_TABLE_SIZE过大时会Segmentation fault (core dumped)
+    struct WordFreq *sorted = malloc(sizeof(struct WordFreq) * WORD_TABLE_SIZE);
+    if (!sorted) {
+        printf("内存分配失败\n");
+        return;
+    }
     memcpy(sorted, stat->word_table, sizeof(struct WordFreq) * stat->word_table_size);
     qsort(sorted, stat->word_table_size, sizeof(struct WordFreq), cmp_word);
     // 始终输出到文件（如有）
@@ -380,13 +420,14 @@ void output_global_report(const struct GlobalStat *stat, int show_report, const 
     printf("+----------------------+--------+\n");
     for (int i = 0; i < TOP_N && i < stat->word_table_size; ++i) {
         printf("| ");
-        print_highlighted_word(sorted[i].word);
+        print_highlighted_word(sorted[i].word, "yellow");
         int len = strlen(sorted[i].word);
         for (int j = len; j < 20; ++j) printf(" ");
         printf(" | %-6d |\n", sorted[i].count);
     }
     printf("+----------------------+--------+\n");
     printf("==============================\n");
+    free(sorted);
 }
 
 /*
@@ -419,7 +460,7 @@ void analyze_dir(const char *dirpath, int show_report, const char *report_path) 
  * 功能：输出命令行用法说明。
  */
 void print_usage() {
-    printf("用法: tanat [-p 文件路径] [-o 输出报告路径] [-c old new] [-d 文件1 文件2] [-r 目录路径]\n");
+    printf("用法: tanat [-p 文件路径] [-o 输出报告路径] [-c old new] [-h color] [-d 文件1 文件2] [-r 目录路径]\n");
 }
 
 /*
@@ -451,6 +492,7 @@ void replace_in_dir(const char *dirpath, const char *old, const char *newstr) {
  * 功能：主程序，解析命令行参数并调度各功能。
  */
 int main(int argc, char *argv[]) {
+    char color[32] = "yellow";
     char *filepath = NULL, *report_path = NULL, *dirpath = NULL;
     int show_report = 0;
     int i = 1;
@@ -458,7 +500,7 @@ int main(int argc, char *argv[]) {
     int do_replace = 0;
 
     if (argc == 1) {
-        analyze_file("input.txt", 0, NULL);
+        analyze_file("input.txt", 0, NULL, color);
         return 0;
     }
 
@@ -468,10 +510,14 @@ int main(int argc, char *argv[]) {
         } else if (strcmp(argv[i], "-o") == 0 && i + 1 < argc) {
             report_path = argv[++i];
             show_report = 1;
-        } else if (strcmp(argv[i], "-c") == 0 && i + 2 < argc) {
+        } else if (strcmp(argv[i], "-c") == 0 && i + 2 < argc && argv[i+1][0] != '-') {
+            // 仅用于替换 old new
             replace_old = argv[++i];
             replace_new = argv[++i];
             do_replace = 1;
+        } else if (strcmp(argv[i], "-h") == 0 && i + 1 < argc) {
+            strncpy(color, argv[++i], sizeof(color)-1);
+            color[sizeof(color)-1] = '\0';
         } else if (strcmp(argv[i], "-d") == 0 && i + 2 < argc) {
             diff_files(argv[i+1], argv[i+2]);
             return 0;
@@ -494,7 +540,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     if (filepath) {
-        analyze_file(filepath, show_report, report_path);
+        analyze_file(filepath, show_report, report_path, color);
         return 0;
     }
     print_usage();
